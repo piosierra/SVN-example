@@ -1,0 +1,96 @@
+---
+title: SVN Example - Unidad 6
+author: "Pío Sierra"
+date: "10/5/2020"
+output:
+  html_document:
+    df_print: paged
+    toc: yes
+  pdf_document:
+    toc: yes
+params:
+  data_file: colon2.csv
+  num_genes: 2000
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r include = FALSE}
+if(!(require(kernlab)))
+  install.packages("kernlab")
+if(!(require(class)))
+  install.packages("class")
+if(!(require(gmodels)))
+  install.packages("gmodels")
+if(!(require(ROCR)))
+  install.packages("ROCR")
+if(!(require(caret)))
+  install.packages("caret")
+if(!(require(e1071)))
+  install.packages("e1071")
+```
+# El paquete Keras
+
+Keras es un API de alto nivel para la creacción de redes neuronales que permite un rápido prototipado de las mismas.  
+Entre sus principales ventajas nos encontramos con:  
+
+* Capacidad para trabajar sobre varios backend distintos, incluyendo TensorFlow, CNTK o Theano.  
+* Soporte para cualquier tipo de arquitectura de la red neuronal.  
+* Soporte específico para redes convolucionales.  
+* Capacidad para utilizar tanto CPUs como GPUs.  
+
+Por todos estos motivos lo hemos elegido para implementar una CNN que clasifique las imágenes con las que trabajamos en la PEC1.  
+
+# Lectura de datos
+
+Los archivos de las imágenes tienen que estar situados en dos carpetas que se indican en forma de parámetros. Una incluirá todas las imágenes de pacientes normales y otra las imágenes de aquellos que tienen derrame. Las imágenes pertenecen al conjunto del NIH Clinical Center.   
+Las imágenes originales se pueden conseguir en:  
+https://nihcc.app.box.com/v/ChestXray-NIHCC  
+
+Keras está pensado para trabajar con imágenes, por lo que no necesitamos de ninguna transformación particular de los datos, aunque sí reducimos el tamaño de las mismas para acelerar el proceso y consumir menos recursos. El tamaño (en pixels de lado del cuadrado) de las imágenes también se puede definir en los parámetros, por lo que es posible hacer el análisis en distintas configuraciones.
+
+```{r}
+# Leemos los datos 
+data <- read.csv(params$data_file)
+
+# Comprobamos la estructura de los datos y si falta alguno
+hist(apply(data[,1:params$num_genes],2,mean))
+table(data[,params$num_genes+1])
+data[!complete.cases(data)]
+
+```
+```{r}
+# Convertimos y en un factor
+data$y <- as.factor(data$y)
+
+# Procedemos a normalizar los datos
+# normalize <- function(x) {
+# return ((x - min(x)) / (max(x) - min(x)))
+# }
+# data <- apply(data[,1:params$num_genes],2,normalize)
+```
+```{r}
+
+set.seed(12345)
+smp_size <-  nrow(data) - trunc(nrow(data) / 3)
+train_ind <-
+  sample(seq_len(nrow(data)), size = smp_size)
+
+data_train <- data[train_ind,]
+data_test <- data[-train_ind,]
+
+```
+
+```{r}
+m <- ksvm(y ~ ., data = data_train, kernel = "vanilladot")
+```
+```{r}
+p <- predict(m, data_test)
+ 
+```
+```{r}
+
+confusionMatrix(p, data_test$y, "t")
+```
