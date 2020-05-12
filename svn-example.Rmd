@@ -3,10 +3,10 @@ title: SVN Example - Unidad 6
 author: "Pío Sierra"
 date: "10/5/2020"
 output:
+  pdf_document:
+    toc: yes
   html_document:
     df_print: paged
-    toc: yes
-  pdf_document:
     toc: yes
 params:
   data_file: colon2.csv
@@ -35,14 +35,14 @@ if(!(require(e1071)))
 ***  
 **Parámetros:**  
 **data_file**: *ruta completa al archivo de datos.*  
-**num_genes**: *número de genes expresados en los datos.* 
+**num_genes**: *número de genes expresados en los datos.*  
+
 *** 
 
 
 # El algoritmo SVN
 
-El algoritmo SVN consiste en la creacción de hiperplanos en el espacio definido por los valores de las características que creen particiones en las que clasificar los datos.
-
+El algoritmo SVN consiste en la creacción de hiperplanos en el espacio definido por los valores de las características que creen particiones en las que clasificar los datos.  
 
 Ventajas| Inconvenientes
 -----|------
@@ -51,7 +51,9 @@ No se ve muy afectado por ruido en los datos ni es susceptible de sobreajuste. |
 Puede resultar más sencillo de utilizar que las redes neuronales, debido a la existencia de varios algoritmos de SVN bien mantenidos. | El resultado es un complejo modelo de caja negra que resulta a menudo imposible de interpretar.  
 Es bastante popular debido a su precisión y al haber resultado vencedor en varias competiciones de data mining. | -  
 
+El algoritmo consiste en identificar los Support Vectors, las observaciones de cada clase que están más cerca del Hyperplano de margen máximo (MMH). Se demuestra que estos puntos bastan para definir el hiperplano. Para el caso de datos que no son linealmente separables, se utiliza una variable slack que define un margen al otro lado del hiperplano al que es aceptable tener alguna observación.  
 
+Otra ventaja de SVN es la posiblidad de añadir más dimensiones a las observaciones para así hacer visibles (lineales) relaciones entre las observaciones.  
 
 # 1 Lectura de datos
 
@@ -68,18 +70,19 @@ Comprobamos si los datos son completos y observamos la distribución de las medi
 ```{r}
 # Comprobamos la estructura de los datos y si falta alguno
 data[!complete.cases(data)]
-hist(apply(data[,1:params$num_genes],2,mean))
+hist(apply(data[,1:params$num_genes],2,mean), 
+     main = "Histograma de los valores médios de cada una de las variables")
 table(data$y)
 
 ```
+Convertimos la variable del resultado en un factor.
 ```{r}
 # Convertimos y en un factor
 data$y <- as.factor(data$y)
 
-
 ```
+A continuación creamos los conjuntos de entrenamiento y prueba, respectivamente 2/3 y 1/3 del original.
 ```{r}
-
 set.seed(12345)
 smp_size <-  nrow(data) - trunc(nrow(data) / 3)
 train_ind <-
@@ -87,31 +90,36 @@ train_ind <-
 
 data_train <- data[train_ind,]
 data_test <- data[-train_ind,]
-
 ```
 
 # 3 Entrenamiento del modelo
 
+Procedemos a entrenar el modelo usando `kernel = "vanilladot`, el kernel para un modelo lineal 
 ```{r}
-m <- ksvm(y ~ ., data = data_train, kernel = "vanilladot")
+ml <- ksvm(y ~ ., data = data_train, kernel = "vanilladot")
+
 ```
+Y generamos las predicciones para ambos modelos.  
+
 ```{r}
-p <- predict(m, data_test)
- 
+pm <- predict(ml, data_test)
+
 ```
 # 4 Evaluación del rendimiento del modelo
 
 ```{r}
 
-confusionMatrix(p, data_test$y, "t")
+confusionMatrix(pm, data_test$y, positive = "t")
+
 ```
 
 # 5 Optimización del rendimiento
 
+Como opción de optimización procedemos a utilizar ahora `kernel = "rbfdot` para el Radial Basis kernel (gausiano), y transformar los datos aumentando las dimensiones en busca de un mejor rendimiento.
+
 ```{r}
-# Procedemos a normalizar los datos
-# normalize <- function(x) {
-# return ((x - min(x)) / (max(x) - min(x)))
-# }
-# data <- apply(data[,1:params$num_genes],2,normalize)
+mg <- ksvm(y ~ ., data = data_train, kernel = "rbfdot")
+pg <- predict(mg, data_test)
+confusionMatrix(pg, data_test$y, positive = "t")
 ```
+
