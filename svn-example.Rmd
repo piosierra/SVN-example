@@ -31,45 +31,52 @@ if(!(require(caret)))
 if(!(require(e1071)))
   install.packages("e1071")
 ```
-# El paquete Keras
 
-Keras es un API de alto nivel para la creacción de redes neuronales que permite un rápido prototipado de las mismas.  
-Entre sus principales ventajas nos encontramos con:  
+***  
+**Parámetros:**  
+**data_file**: *ruta completa al archivo de datos.*  
+**num_genes**: *número de genes expresados en los datos.* 
+*** 
 
-* Capacidad para trabajar sobre varios backend distintos, incluyendo TensorFlow, CNTK o Theano.  
-* Soporte para cualquier tipo de arquitectura de la red neuronal.  
-* Soporte específico para redes convolucionales.  
-* Capacidad para utilizar tanto CPUs como GPUs.  
 
-Por todos estos motivos lo hemos elegido para implementar una CNN que clasifique las imágenes con las que trabajamos en la PEC1.  
+# El algoritmo SVN
 
-# Lectura de datos
+El algoritmo SVN consiste en la creacción de hiperplanos en el espacio definido por los valores de las características que creen particiones en las que clasificar los datos.
 
-Los archivos de las imágenes tienen que estar situados en dos carpetas que se indican en forma de parámetros. Una incluirá todas las imágenes de pacientes normales y otra las imágenes de aquellos que tienen derrame. Las imágenes pertenecen al conjunto del NIH Clinical Center.   
-Las imágenes originales se pueden conseguir en:  
-https://nihcc.app.box.com/v/ChestXray-NIHCC  
 
-Keras está pensado para trabajar con imágenes, por lo que no necesitamos de ninguna transformación particular de los datos, aunque sí reducimos el tamaño de las mismas para acelerar el proceso y consumir menos recursos. El tamaño (en pixels de lado del cuadrado) de las imágenes también se puede definir en los parámetros, por lo que es posible hacer el análisis en distintas configuraciones.
+Ventajas| Inconvenientes
+-----|------
+Pueden ser usados tanto para clasificación como para predicción numérica | Encontrar el mejor modelo exige probar con distintos kernels y parámetros.  
+No se ve muy afectado por ruido en los datos ni es susceptible de sobreajuste. | El entrenamiento puede ser lento, sobre todo cuando se trata de datos con un gran número de características u observaciones.  
+Puede resultar más sencillo de utilizar que las redes neuronales, debido a la existencia de varios algoritmos de SVN bien mantenidos. | El resultado es un complejo modelo de caja negra que resulta a menudo imposible de interpretar.  
+Es bastante popular debido a su precisión y al haber resultado vencedor en varias competiciones de data mining. | -  
+
+
+
+# 1 Lectura de datos
+
+Procedemos a leer los datos. En los parámetros se deben especificar la ruta completa al archivo de datos así como el número de genes incluidos en las observaciones. El archivo debe tener una fila por observación, e incluir una columna "y" con los valores "n" o "t" según la observación proceda de un paciente normal o de un tumor.
 
 ```{r}
 # Leemos los datos 
 data <- read.csv(params$data_file)
 
+```
+# 2 Exploración y preparación de los datos
+
+Comprobamos si los datos son completos y observamos la distribución de las medias de cada variable. También vemos la proporción de casos observados de cada tipo.
+```{r}
 # Comprobamos la estructura de los datos y si falta alguno
-hist(apply(data[,1:params$num_genes],2,mean))
-table(data[,params$num_genes+1])
 data[!complete.cases(data)]
+hist(apply(data[,1:params$num_genes],2,mean))
+table(data$y)
 
 ```
 ```{r}
 # Convertimos y en un factor
 data$y <- as.factor(data$y)
 
-# Procedemos a normalizar los datos
-# normalize <- function(x) {
-# return ((x - min(x)) / (max(x) - min(x)))
-# }
-# data <- apply(data[,1:params$num_genes],2,normalize)
+
 ```
 ```{r}
 
@@ -83,6 +90,8 @@ data_test <- data[-train_ind,]
 
 ```
 
+# 3 Entrenamiento del modelo
+
 ```{r}
 m <- ksvm(y ~ ., data = data_train, kernel = "vanilladot")
 ```
@@ -90,7 +99,19 @@ m <- ksvm(y ~ ., data = data_train, kernel = "vanilladot")
 p <- predict(m, data_test)
  
 ```
+# 4 Evaluación del rendimiento del modelo
+
 ```{r}
 
 confusionMatrix(p, data_test$y, "t")
+```
+
+# 5 Optimización del rendimiento
+
+```{r}
+# Procedemos a normalizar los datos
+# normalize <- function(x) {
+# return ((x - min(x)) / (max(x) - min(x)))
+# }
+# data <- apply(data[,1:params$num_genes],2,normalize)
 ```
